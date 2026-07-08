@@ -1,7 +1,6 @@
 const functions = require('firebase-functions/v1');
 const database = require('./../database');
 const cheerio = require('cheerio');
-const hotukdealsParser = require('./hotukdeals');
 const slickdealsParser = require('./slickdeals');
 const ozbargainParser = require('./ozbargain');
 const helpers = require('./../helpers');
@@ -46,8 +45,6 @@ module.exports.parse = async function(feed, dbArticles, articles, newArticles, u
                         slickdealsParser.parse(feed, article, feedElement, $);
                     } else if (feed.source === 'ozbargain') {
                         ozbargainParser.parse(feed, article, feedElement, $);
-                    } else if (feed.source === 'hotukdeals') {
-                        hotukdealsParser.parse(feed, article, feedElement, $);
                     }
 
                     articles.push(article);
