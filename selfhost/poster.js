@@ -29,14 +29,34 @@ function matchPersonal(deal) {
     return hits;
 }
 
-// Price-error / discount-cliff detection — our addition on top of upstream.
-// Title patterns: explicit error mentions, or "(reg. $X)" cliff markers.
+// Price-error / deep-cliff detection — our addition on top of upstream.
+// v2 (2026-11-25): a bare "(reg. $X)" marker is NOT a cliff — Black Friday
+// promo-code deals all carry it. Only counts when the listed price is ≥75%
+// below the reg price parsed from the same title. Verified against the
+// Go BioLink false positive ($15 vs reg. $29.99 = 50% → no ping).
 const PRICE_ERROR_RE = /price\s?err(o)?r|pricing\s?err(o)?r|\bglitch(ed)?\b|scan\s?error|misprice/i;
-const CLIFF_RE = /\(\s*(?:reg|was|list)\.?\s*\$\d+(?:\.\d+)?\s*\)|(?:\d{1,3})%\s*off\s*(?:reg|orig|list)/i;
+
+function cliffDiscount(title) {
+    const t = String(title || '');
+    const m = t.match(/\(\s*(?:reg|was|list)\.?\s*\$([\d,]+(?:\.\d+)?)\s*\)/i);
+    if (!m) return null;
+    const reg = parseFloat(m[1].replace(/,/g, ''));
+    // Current price = last $ amount BEFORE the reg marker.
+    const before = t.slice(0, m.index).replace(/,/g, '');
+    const pm = before.match(/\$\s?([\d]+(?:\.\d+)?)(?![\d])/);
+    if (!pm) return null;
+    const cur = parseFloat(pm[1]);
+    if (!(cur > 0 && reg > 0) || cur >= reg) return null;
+    return 1 - cur / reg;
+}
+
+const CLIFF_THRESHOLD = 0.75; // ≥75% below reg = real cliff worth a 🚨
 
 function priceErrorMatch(deal) {
     const t = deal.title || '';
-    return PRICE_ERROR_RE.test(t) || CLIFF_RE.test(t);
+    if (PRICE_ERROR_RE.test(t)) return true;
+    const d = cliffDiscount(t);
+    return d != null && d >= CLIFF_THRESHOLD;
 }
 
 async function postMessage(payload) {
