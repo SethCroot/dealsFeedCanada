@@ -131,7 +131,14 @@ async function tick() {
             }
         }
         for (const deal of newlyHot) {
-            if (!posts(deal)) { skipped++; continue; }
+            // Seth (2026-11-25): "you keep pinging the same thing." A score
+            // increase is NOT new signal — a filter-matched deal already pinged
+            // when it was new, and signal-only means we don't re-post it when
+            // it crosses the hot threshold. Re-post ONLY if the original post
+            // never landed (still 'pending' after a Discord error).
+            const prior = s.deals[deal.id] ? s.deals[deal.id].discord_message_id : null;
+            const neverLanded = prior === 'pending' || prior == null;
+            if (!neverLanded || !posts(deal)) { skipped++; continue; }
             try {
                 const msgId = await poster.postDeal({ ...deal, is_hot: true });
                 if (s.deals[deal.id]) s.deals[deal.id].discord_message_id = msgId;
