@@ -19,6 +19,11 @@ const BASELINE = process.argv.includes('--baseline');
 const ONCE = process.argv.includes('--once') || BASELINE;
 const FORCE_ALL = process.argv.includes('--all') || BASELINE;
 
+// Free-games feed OFF (Seth, 2026-11-25: "I don't need games — we have our own way
+// of getting games"). Epic parser + free-game posting kept in code for upstream
+// parity; flip to true to re-enable.
+const FREE_GAMES = false;
+
 // ---------------- Epic free games (ported from parseFreeDeals/feeds/epic.js) ----------------
 async function parseEpicFree(freeDeals) {
     let count = 0;
@@ -60,7 +65,7 @@ async function tick() {
         : minute % 6 === 1 ? 'bapcsalescanada'
         : minute % 6 === 3 ? 'videogamedealscanada'
         : minute % 6 === 5 ? 'gamedeals' : null;
-    const doEpic = FORCE_ALL || minute % 30 === 0;
+    const doEpic = FREE_GAMES && (FORCE_ALL || minute % 30 === 0);
 
     const parsed = [];
     if (doRfd) parsed.push(...(await redflagdeals.parse()));
@@ -90,6 +95,16 @@ async function tick() {
         }
     }
 
+    // Seth's rule (2026-11-25): #deals is signal-only. A deal posts ONLY if it is a
+    // price-error or matches the personal filter; everything else is recorded in
+    // state (dedupe stays intact) but never posted.
+    function posts(deal) {
+        return poster.priceErrorMatch(deal) || poster.matchPersonal(deal).length > 0;
+    }
+    for (const deal of newDeals) {
+        if (!posts(deal) && s.deals[deal.id]) s.deals[deal.id].discord_message_id = 'skipped';
+    }
+
     // free games
     const freeParsed = [];
     if (doEpic) await parseEpicFree(freeParsed);
@@ -101,9 +116,10 @@ async function tick() {
         }
     }
 
-    let posted = 0, errors = 0;
+    let posted = 0, errors = 0, skipped = 0;
     if (!BASELINE) {
         for (const deal of newDeals) {
+            if (!posts(deal)) { skipped++; continue; }
             try {
                 const msgId = await poster.postDeal(deal);
                 s.deals[deal.id].discord_message_id = msgId;
@@ -115,6 +131,7 @@ async function tick() {
             }
         }
         for (const deal of newlyHot) {
+            if (!posts(deal)) { skipped++; continue; }
             try {
                 const msgId = await poster.postDeal({ ...deal, is_hot: true });
                 if (s.deals[deal.id]) s.deals[deal.id].discord_message_id = msgId;
@@ -146,7 +163,7 @@ async function tick() {
     s.last_run = new Date().toISOString();
     state.save(s);
 
-    const summary = `[tick ${new Date().toISOString()}] parsed=${parsed.length} new=${newDeals.length} hot=${newlyHot.length} free_new=${newFree.length} posted=${posted} errors=${errors} state_deals=${Object.keys(s.deals).length}`;
+    const summary = `[tick ${new Date().toISOString()}] parsed=${parsed.length} new=${newDeals.length} hot=${newlyHot.length} free_new=${newFree.length} posted=${posted} skipped=${skipped} errors=${errors} state_deals=${Object.keys(s.deals).length}`;
     console.log(summary);
 
     if (BASELINE) {

@@ -104,4 +104,4 @@ async function postFreeDeal(fd) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-module.exports = { postDeal, postFreeDeal, postMessage, priceErrorMatch, sleep };
+module.exports = { postDeal, postFreeDeal, postMessage, priceErrorMatch, matchPersonal, sleep };
