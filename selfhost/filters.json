@@ -1,0 +1,11 @@
+{
+    "_comment": "Personal relevance filter for #deals pings. Matching deals @mention Seth. Tunable — just tell Hank.",
+    "enabled": true,
+    "keywords": {
+        "pc_hardware": ["rtx", "radeon", "rx 9", "geforce", "gtx", "gpu", "ryzen", "7800x3d", "9800x3d", "cpu", "ssd", "nvme", "prebuilt", "monitor", "ultrawide", "oled", "keyboard", "mouse", "webcam", "cpu cooler", "psu"],
+        "gaming": ["steam deck", "ps5", "switch 2", "nintendo switch", "xbox", "vr", "meta quest"],
+        "apple": ["airpods", "macbook", "ipad", "apple watch", "m4 mac", "m3 mac"],
+        "household_tech": ["nas", "synology", "router", "wifi 7", "mesh", "tv 4k", "oled tv", "soundbar", "projector", "kindle", "e-reader", "ereader"],
+        "fitness": ["protein", "creatine", "dumbbell", "kettlebell", "adjustable dumbbell", "resistance band"]
+    }
+}

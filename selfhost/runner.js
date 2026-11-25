@@ -7,12 +7,13 @@
 const ENV = require('./env');
 const state = require('./state');
 const poster = require('./poster');
+const redditCdp = require('./reddit_cdp');
 
 process.env.RFD_API_URL = ENV.RFD_API_URL;
-process.env.SUBREDDIT_RSS_URL = ENV.SUBREDDIT_RSS_URL;
 
 const redflagdeals = require('../functions/scheduled/parseThemDeals/feeds/redflagdeals.js');
-const reddit = require('../functions/scheduled/parseThemDeals/feeds/reddit.js');
+
+const REDDIT_SUBS = ['bapcsalescanada', 'videogamedealscanada', 'gamedeals'];
 
 const BASELINE = process.argv.includes('--baseline');
 const ONCE = process.argv.includes('--once') || BASELINE;
@@ -56,20 +57,18 @@ async function tick() {
     const minute = new Date().getMinutes();
     const doRfd = FORCE_ALL || minute % 5 === 0;
     const redditSlot = FORCE_ALL ? 'all'
-        : minute % 6 === 1 ? reddit.IDs.BAPCSALESCANADA
-        : minute % 6 === 3 ? reddit.IDs.VIDEOGAMEDEALSCANADA
-        : minute % 6 === 5 ? reddit.IDs.GAMEDEALS : null;
+        : minute % 6 === 1 ? 'bapcsalescanada'
+        : minute % 6 === 3 ? 'videogamedealscanada'
+        : minute % 6 === 5 ? 'gamedeals' : null;
     const doEpic = FORCE_ALL || minute % 30 === 0;
 
     const parsed = [];
     if (doRfd) parsed.push(...(await redflagdeals.parse()));
     if (redditSlot) {
-        const subs = redditSlot === 'all'
-            ? [reddit.IDs.BAPCSALESCANADA, reddit.IDs.VIDEOGAMEDEALSCANADA, reddit.IDs.GAMEDEALS]
-            : [redditSlot];
+        const subs = redditSlot === 'all' ? REDDIT_SUBS : [redditSlot];
         for (const sub of subs) {
-            parsed.push(...(await reddit.parseSubredditRss(sub)));
-            await poster.sleep(2000); // reddit rate-limits aggressively
+            parsed.push(...(await redditCdp.harvestSubreddit(sub)));
+            await poster.sleep(2000); // tabs are heavier than HTTP; pace them
         }
     }
 

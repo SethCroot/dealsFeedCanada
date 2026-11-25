@@ -2,7 +2,32 @@
 // a DiscordBot-style UA — a browser UA gets 403 code 40333 on guild endpoints,
 // while no/empty UA gets Cloudflare 403 code 1010. Correct: 'DiscordBot (url, 1.0)'.
 const ENV = require('./env');
+const fs = require('fs');
 const UA = 'DiscordBot (https://github.com/SethCroot/dealsFeedCanada, 1.0)';
+
+// Personal relevance filter (selfhost/filters.json) — matching deals @mention Seth.
+function loadFilters() {
+    try {
+        const f = JSON.parse(fs.readFileSync(__dirname + '/filters.json', 'utf8'));
+        if (!f.enabled) return null;
+        const entries = [];
+        for (const [category, words] of Object.entries(f.keywords || {})) {
+            for (const w of words) entries.push([w.toLowerCase(), category]);
+        }
+        return entries;
+    } catch (e) { return null; }
+}
+
+function matchPersonal(deal) {
+    const filters = loadFilters();
+    if (!filters) return [];
+    const t = (deal.title || '').toLowerCase();
+    const hits = [];
+    for (const [word, category] of filters) {
+        if (t.includes(word) && !hits.includes(category)) hits.push(category);
+    }
+    return hits;
+}
 
 // Price-error / discount-cliff detection — our addition on top of upstream.
 // Title patterns: explicit error mentions, or "(reg. $X)" cliff markers.
@@ -54,6 +79,11 @@ async function postDeal(deal) {
     const payload = { embeds: [dealEmbed(deal)] };
     if (priceErrorMatch(deal)) {
         payload.content = `<@${ENV.SETH_USER_ID}> 🚨 possible price error / deep cliff — check fast, may get cancelled`;
+    } else {
+        const cats = matchPersonal(deal);
+        if (cats.length > 0) {
+            payload.content = `<@${ENV.SETH_USER_ID}> 🎯 matches your filter: ${cats.join(', ')}`;
+        }
     }
     return postMessage(payload);
 }
