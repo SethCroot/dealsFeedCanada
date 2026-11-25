@@ -1,4 +1,4 @@
-const functions = require('firebase-functions/v1');
+const functions = require('../fbstub.js');
 const helpers = require('./../helpers');
 const util = require('util');
 const cheerio = require('cheerio');
@@ -156,6 +156,11 @@ module.exports.parseSubredditRss = async function(subredditName) {
     try {
         const response = await fetch(util.format(`${process.env.SUBREDDIT_RSS_URL}`, subredditName), {
             method: 'get',
+            headers: {
+                // Reddit RSS rejects default Node UAs (403) — needs a descriptive one
+                'User-Agent': 'dealsFeedCanada-selfhost/1.0 (AG2 bot; github.com/SethCroot/dealsFeedCanada)',
+                'Accept': 'application/rss+xml, application/xml, text/xml',
+            },
             signal: AbortSignal.timeout(5000),
         });
 

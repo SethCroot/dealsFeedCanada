@@ -1,0 +1,7 @@
+{
+  "name": "dealsfeed-selfhost",
+  "private": true,
+  "description": "Self-hosted port of singularhum/dealsFeedCanada for AG2 — no Firebase, posts to Discord REST",
+  "engines": { "node": "22" },
+  "dependencies": { "cheerio": "^1.2.0" }
+}
