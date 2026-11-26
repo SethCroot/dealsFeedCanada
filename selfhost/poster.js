@@ -29,6 +29,30 @@ function matchPersonal(deal) {
     return hits;
 }
 
+// Max pay-price gate (Seth, 2026-11-26: "can't afford anything over about $300
+// right now and for a while"). Parse $ amounts in the title EXCLUDING
+// (reg/was/list) markers, take the MAX (worst-case pay price — handles
+// "$419/42mm $459/46mm" and "$130 OFF ($419)" style titles). No $ amount found
+// = null = unknown price, allowed through. Threshold lives in filters.json
+// (max_price) so it retunes by request, like the keywords.
+function dealPriceCeiling(title) {
+    const t = String(title || '').replace(/\(\s*(?:reg|was|list)\.?\s*\$[\d,]+(?:\.\d+)?\s*\)/gi, ' ');
+    const matches = [...t.matchAll(/\$\s?([\d,]+(?:\.\d+)?)/g)].map((m) => parseFloat(m[1].replace(/,/g, '')));
+    if (!matches.length) return null;
+    return Math.max(...matches);
+}
+
+function overBudget(title) {
+    let max = null;
+    try {
+        const f = JSON.parse(fs.readFileSync(__dirname + '/filters.json', 'utf8'));
+        max = typeof f.max_price === 'number' ? f.max_price : null;
+    } catch (e) { /* no filters file = no budget gate */ }
+    if (max == null) return false;
+    const p = dealPriceCeiling(title);
+    return p != null && p > max;
+}
+
 // Price-error / deep-cliff detection — our addition on top of upstream.
 // v2 (2026-11-25): a bare "(reg. $X)" marker is NOT a cliff — Black Friday
 // promo-code deals all carry it. Only counts when the listed price is ≥75%
@@ -124,4 +148,4 @@ async function postFreeDeal(fd) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-module.exports = { postDeal, postFreeDeal, postMessage, priceErrorMatch, matchPersonal, sleep };
+module.exports = { postDeal, postFreeDeal, postMessage, priceErrorMatch, matchPersonal, overBudget, dealPriceCeiling, sleep };

@@ -123,6 +123,7 @@ async function tick() {
     }
     function posts(deal) {
         if (s.posted_titles[titleKey(deal.title)]) return false; // already pinged this title
+        if (poster.overBudget(deal.title)) return false; // over Seth's pay-price ceiling — tracked, never pinged
         return poster.priceErrorMatch(deal) || poster.matchPersonal(deal).length > 0;
     }
     function markPosted(deal) {
