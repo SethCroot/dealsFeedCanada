@@ -53,6 +53,18 @@ function overBudget(title) {
     return p != null && p > max;
 }
 
+// Global denylist (filters.json "exclude") — applied before ALL matching, including
+// price-error pings. Seth, 2026-11-26: no game bundles/keys/subscription deals, period.
+function excluded(title) {
+    let list = [];
+    try {
+        const f = JSON.parse(fs.readFileSync(__dirname + '/filters.json', 'utf8'));
+        list = Array.isArray(f.exclude) ? f.exclude : [];
+    } catch (e) { /* no filters file = no exclusions */ }
+    const t = String(title || '').toLowerCase();
+    return list.some((k) => t.includes(k.toLowerCase()));
+}
+
 // Price-error / deep-cliff detection — our addition on top of upstream.
 // v2 (2026-11-25): a bare "(reg. $X)" marker is NOT a cliff — Black Friday
 // promo-code deals all carry it. Only counts when the listed price is ≥75%
@@ -148,4 +160,4 @@ async function postFreeDeal(fd) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-module.exports = { postDeal, postFreeDeal, postMessage, priceErrorMatch, matchPersonal, overBudget, dealPriceCeiling, sleep };
+module.exports = { postDeal, postFreeDeal, postMessage, priceErrorMatch, matchPersonal, overBudget, dealPriceCeiling, excluded, sleep };
