@@ -2,6 +2,14 @@
  "_comment": "Personal relevance filter for #deals pings. Matching deals @mention Seth. max_price = pay-price ceiling (USD/CAD $ in title, reg/was prices excluded); deals over it never ping. Tunable \u2014 just tell Hank.",
  "enabled": true,
  "keywords": {
+  "hockey_tickets": [
+   "canucks",
+   "rogers arena",
+   "hockey ticket",
+   "hockey tickets",
+   "nhl ticket",
+   "nhl tickets"
+  ],
   "pc_hardware": [
    "rtx",
    "radeon",
