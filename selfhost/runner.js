@@ -81,6 +81,13 @@ async function tick() {
     const newDeals = [];
     const newlyHot = [];
     for (const deal of parsed) {
+        // RFD post_time can produce an Invalid Date; an invalid/missing created
+        // made the 30-day prune delete the entry right after save, so the deal
+        // came back "new" every tick and re-pinged forever (Eneba Game Pass,
+        // 2026-11-26: posted 5x in 25 min). Sanitize at insert.
+        if (!deal.created || Number.isNaN(new Date(deal.created).getTime())) {
+            deal.created = new Date().toISOString();
+        }
         const existing = s.deals[deal.id];
         if (!existing) {
             newDeals.push(deal);
@@ -97,9 +104,29 @@ async function tick() {
 
     // Seth's rule (2026-11-25): #deals is signal-only. A deal posts ONLY if it is a
     // price-error or matches the personal filter; everything else is recorded in
-    // state (dedupe stays intact) but never posted.
+    // state (dedupe intact) but never posted.
+    // Title-level dedupe (2026-11-26): the SAME deal can carry different feed IDs —
+    // RFD re-lists, RFD + Reddit cross-posts, or a pruned state record (bad created
+    // date loop). Normalize the title and never ping the same title twice in 7 days.
+    s.posted_titles = s.posted_titles || {};
+    const nowMs = Date.now();
+    for (const k of Object.keys(s.posted_titles)) {
+        if (nowMs - s.posted_titles[k] > 7 * 24 * 3600 * 1000) delete s.posted_titles[k];
+    }
+    function titleKey(t) {
+        return String(t || '')
+            .toLowerCase()
+            .replace(/\[[^\]]*\]/g, ' ')      // drop [Retailer] prefixes
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim()
+            .replace(/\s+/g, ' ');
+    }
     function posts(deal) {
+        if (s.posted_titles[titleKey(deal.title)]) return false; // already pinged this title
         return poster.priceErrorMatch(deal) || poster.matchPersonal(deal).length > 0;
+    }
+    function markPosted(deal) {
+        s.posted_titles[titleKey(deal.title)] = Date.now();
     }
     for (const deal of newDeals) {
         if (!posts(deal) && s.deals[deal.id]) s.deals[deal.id].discord_message_id = 'skipped';
@@ -123,6 +150,7 @@ async function tick() {
             try {
                 const msgId = await poster.postDeal(deal);
                 s.deals[deal.id].discord_message_id = msgId;
+                markPosted(deal);
                 posted++;
                 await poster.sleep(400);
             } catch (e) {
@@ -142,6 +170,7 @@ async function tick() {
             try {
                 const msgId = await poster.postDeal({ ...deal, is_hot: true });
                 if (s.deals[deal.id]) s.deals[deal.id].discord_message_id = msgId;
+                markPosted(deal);
                 posted++;
                 await poster.sleep(400);
             } catch (e) {
