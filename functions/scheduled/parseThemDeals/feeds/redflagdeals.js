@@ -32,6 +32,10 @@ module.exports.parse = async function() {
                 deal.id = dealJson.topic_id.toString();
                 deal.source = module.exports.ID;
                 deal.title = dealJson.title;
+                // Deal URL for Discord embeds — RFD's API doesn't return it.
+                // showthread.php?t=<id> 302s to the canonical slug URL (verified
+                // live 2026-11-26). Without this, RFD embeds are unclickable.
+                deal.url = 'https://forums.redflagdeals.com/showthread.php?t=' + dealJson.topic_id;
 
                 if (dealJson.offer && dealJson.offer.dealer_name) {
                     // Retailer is not part of the title so we must add it in.
